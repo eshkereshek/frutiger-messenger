@@ -10,21 +10,23 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
+// Подключение к БД
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: { rejectUnauthorized: false }
 });
 
+// Инициализация базы данных
 async function initDb() {
     try {
-        // РАСКОММЕНТИРОВАНО ДЛЯ ИСПРАВЛЕНИЯ ОШИБКИ 42703
-        // Это удалит старые таблицы и создаст их заново с правильными колонками
-        console.log("Пересоздание таблиц для исправления структуры...");
+        console.log("Выполняю жесткую очистку и пересоздание таблиц...");
+        // Удаляем старое, чтобы исправить ошибку с колонками (42703)
         await pool.query('DROP TABLE IF EXISTS messages CASCADE;');
         await pool.query('DROP TABLE IF EXISTS users CASCADE;');
 
+        // Создаем заново с правильной структурой
         await pool.query(`
-            CREATE TABLE IF NOT EXISTS users (
+            CREATE TABLE users (
                 id SERIAL PRIMARY KEY,
                 username TEXT UNIQUE NOT NULL,
                 password TEXT NOT NULL,
@@ -33,7 +35,7 @@ async function initDb() {
         `);
 
         await pool.query(`
-            CREATE TABLE IF NOT EXISTS messages (
+            CREATE TABLE messages (
                 id SERIAL PRIMARY KEY,
                 username TEXT,
                 avatar_color TEXT,
@@ -42,34 +44,33 @@ async function initDb() {
                 timestamp TIMESTAMPTZ DEFAULT NOW()
             );
         `);
-        console.log("--- База данных синхронизирована успешно ---");
+        console.log("--- База данных успешно обновлена ---");
     } catch (err) {
-        console.error("!!! Ошибка инициализации БД:", err.code, err.message);
+        console.error("!!! Критическая ошибка БД:", err.code, err.message);
     }
 }
 initDb();
 
-// Раздача статических файлов из папки public
-app.use(express.static(path.join(__dirname, 'public')));
+// ВАЖНО: Настройка путей
 app.use(express.json());
+// Указываем, что папка public — это место для картинок/html/js браузера
+app.use(express.static(path.join(__dirname, 'public')));
 
-// РЕГИСТРАЦИЯ
+// API: Регистрация
 app.post('/api/register', async (req, res) => {
     const { username, password } = req.body;
-    if (!username || !password) return res.status(400).json({ success: false, error: "Заполните все поля" });
-
+    if (!username || !password) return res.status(400).json({ success: false, error: "Заполните поля" });
     try {
         const hashedPassword = await bcrypt.hash(password, 10);
         await pool.query('INSERT INTO users (username, password) VALUES ($1, $2)', [username, hashedPassword]);
         res.json({ success: true });
     } catch (err) {
-        console.error("Регистрация (ошибка):", err.code);
-        const msg = err.code === '23505' ? "Никнейм уже занят" : "Ошибка БД: " + err.code;
+        const msg = err.code === '23505' ? "Ник занят" : "Ошибка БД: " + err.code;
         res.status(400).json({ success: false, error: msg });
     }
 });
 
-// ЛОГИН
+// API: Логин
 app.post('/api/login', async (req, res) => {
     const { username, password } = req.body;
     try {
@@ -77,34 +78,25 @@ app.post('/api/login', async (req, res) => {
         if (result.rows.length > 0) {
             const user = result.rows[0];
             const match = await bcrypt.compare(password, user.password);
-            if (match) {
-                return res.json({ 
-                    success: true, 
-                    user: { name: user.username, color: user.avatar_color } 
-                });
-            }
+            if (match) return res.json({ success: true, user: { name: user.username, color: user.avatar_color }});
         }
-        res.status(401).json({ success: false, error: "Неверный ник или пароль" });
-    } catch (err) {
-        res.status(500).json({ success: false, error: "Ошибка сервера" });
-    }
+        res.status(401).json({ success: false, error: "Неверный пароль" });
+    } catch (err) { res.status(500).json({ success: false, error: "Ошибка сервера" }); }
 });
 
-// ИСТОРИЯ
+// API: Загрузка сообщений
 app.get('/api/messages/:channelKey', async (req, res) => {
     try {
         const result = await pool.query(
             `SELECT username as user, avatar_color as "avatarColor", text, 
             channel_key as "serverChannel", TO_CHAR(timestamp, 'HH24:MI') as timestamp 
-            FROM messages WHERE channel_key = $1 ORDER BY id ASC LIMIT 60`, 
-            [req.params.channelKey]
+            FROM messages WHERE channel_key = $1 ORDER BY id ASC`, [req.params.channelKey]
         );
         res.json(result.rows);
-    } catch (err) {
-        res.status(500).json([]);
-    }
+    } catch (err) { res.json([]); }
 });
 
+// Чат в реальном времени
 io.on('connection', (socket) => {
     socket.on('chat message', async (msg) => {
         try {
@@ -114,9 +106,9 @@ io.on('connection', (socket) => {
             );
             msg.timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             io.emit('chat message', msg);
-        } catch (err) { console.error("Ошибка Socket:", err.message); }
+        } catch (e) { console.error("Socket error"); }
     });
 });
 
 const PORT = process.env.PORT || 10000;
-server.listen(PORT, () => console.log(`Aero Server ready on port ${PORT}`));
+server.listen(PORT, () => console.log(`Сервер запущен на порту ${PORT}`));
