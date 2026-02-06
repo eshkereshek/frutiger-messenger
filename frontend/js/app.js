@@ -3,8 +3,8 @@ const app = {
     // Конфигурация
     config: {
         // API_URL будет заменен после деплоя
-        API_URL: 'http://localhost:3000',
-        WS_URL: 'ws://localhost:3000',
+        API_URL: 'https://pagrysha-messenger.onrender.com',
+        WS_URL: 'ws://pagrysha-messenger.onrender.com',
         defaultChannelId: 1
     },
     
