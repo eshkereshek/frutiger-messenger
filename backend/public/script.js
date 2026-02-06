@@ -8,7 +8,6 @@ let state = {
     messages: {}
 };
 
-// Константы для интерфейса
 const APP_DATA = {
     servers: [
         { id: 1, name: "Aero Central", iconClass: "fa-solid fa-cloud", channels: [{ id: "gen1", name: "общий" }, { id: "ann1", name: "новости" }] },
@@ -26,11 +25,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// --- АВТОРИЗАЦИЯ ---
 async function handleAuth(type) {
-    const username = document.getElementById('login-input').value;
-    const password = document.getElementById('password-input').value;
+    const username = document.getElementById('login-input').value.trim();
+    const password = document.getElementById('password-input').value.trim();
     const errorEl = document.getElementById('auth-error');
+
+    if (!username || !password) {
+        errorEl.textContent = "Введите логин и пароль";
+        return;
+    }
 
     try {
         const res = await fetch(`/api/${type}`, {
@@ -38,6 +41,7 @@ async function handleAuth(type) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username, password })
         });
+        
         const data = await res.json();
         
         if (data.success) {
@@ -47,15 +51,19 @@ async function handleAuth(type) {
                 document.getElementById('login-modal').classList.add('hidden');
                 renderApp();
             } else {
-                alert("Успешная регистрация! Теперь войдите.");
+                errorEl.style.color = "#A0D855";
+                errorEl.textContent = "Успешно! Теперь нажмите Вход";
             }
         } else {
-            errorEl.textContent = data.error;
+            errorEl.style.color = "#ff6b6b";
+            errorEl.textContent = data.error || "Ошибка авторизации";
         }
-    } catch (e) { errorEl.textContent = "Ошибка связи с сервером"; }
+    } catch (e) { 
+        errorEl.textContent = "Сервер недоступен"; 
+    }
 }
 
-// --- РЕНДЕРИНГ ---
+// Рендеринг и логика чата (из прошлых сообщений)
 async function renderApp() {
     updateUserPanel();
     renderServers();
@@ -78,9 +86,9 @@ function renderMessages() {
         const div = document.createElement('div');
         div.className = 'message';
         div.innerHTML = `
-            <div class="message-avatar" style="background: ${msg.avatarColor}">${msg.user[0]}</div>
+            <div class="message-avatar" style="background: ${msg.avatarColor}">${msg.user[0].toUpperCase()}</div>
             <div class="message-content">
-                <div class="message-header"><strong>${msg.user}</strong> <small>${msg.timestamp}</small></div>
+                <div class="message-header"><strong>${msg.user}</strong> <span class="msg-time">${msg.timestamp}</span></div>
                 <div class="msg-text">${msg.text}</div>
             </div>`;
         container.appendChild(div);
@@ -88,40 +96,9 @@ function renderMessages() {
     container.scrollTop = container.scrollHeight;
 }
 
-// --- ОБРАБОТЧИКИ ---
-function initEventListeners() {
-    // Сообщения
-    document.getElementById('message-input').onkeypress = (e) => { if (e.key === 'Enter') sendMessage(); };
-    
-    // Вход/Регистрация
-    document.getElementById('login-btn').onclick = () => handleAuth('login');
-    document.getElementById('show-reg-btn').onclick = () => handleAuth('register');
-
-    // Модалки
-    document.querySelector('.fa-gear').onclick = () => document.getElementById('settings-modal').classList.remove('hidden');
-    document.getElementById('close-settings').onclick = () => document.getElementById('settings-modal').classList.add('hidden');
-
-    // Темы
-    document.getElementById('theme-select').onchange = (e) => {
-        state.theme = e.target.value;
-        localStorage.setItem('aero_theme', state.theme);
-        applySettings();
-    };
-
-    document.querySelectorAll('.color-option').forEach(opt => {
-        opt.onclick = () => {
-            state.accentColor = opt.dataset.color;
-            localStorage.setItem('aero_accent', state.accentColor);
-            applySettings();
-            updateUserPanel();
-        };
-    });
-}
-
 function sendMessage() {
     const input = document.getElementById('message-input');
     if (!input.value.trim() || !state.currentUser) return;
-
     socket.emit('chat message', {
         user: state.currentUser.name,
         avatarColor: state.accentColor,
@@ -140,10 +117,34 @@ socket.on('chat message', (msg) => {
     }
 });
 
+function initEventListeners() {
+    document.getElementById('login-btn').onclick = () => handleAuth('login');
+    document.getElementById('show-reg-btn').onclick = () => handleAuth('register');
+    document.getElementById('message-input').onkeypress = (e) => { if (e.key === 'Enter') sendMessage(); };
+    
+    // Настройки
+    document.querySelector('.fa-gear').onclick = () => document.getElementById('settings-modal').classList.remove('hidden');
+    document.getElementById('close-settings').onclick = () => document.getElementById('settings-modal').classList.add('hidden');
+    
+    document.getElementById('theme-select').onchange = (e) => {
+        state.theme = e.target.value;
+        localStorage.setItem('aero_theme', state.theme);
+        applySettings();
+    };
+
+    document.querySelectorAll('.color-option').forEach(opt => {
+        opt.onclick = () => {
+            state.accentColor = opt.dataset.color;
+            localStorage.setItem('aero_accent', state.accentColor);
+            applySettings();
+            updateUserPanel();
+        };
+    });
+}
+
 function applySettings() {
     document.documentElement.setAttribute('data-theme', state.theme);
     document.documentElement.style.setProperty('--accent-color', state.accentColor);
-    document.getElementById('theme-select').value = state.theme;
 }
 
 function updateUserPanel() {

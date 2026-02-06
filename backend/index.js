@@ -15,9 +15,9 @@ const pool = new Pool({
     ssl: { rejectUnauthorized: false }
 });
 
+// Инициализация БД
 async function initDb() {
     try {
-        // Таблица пользователей
         await pool.query(`
             CREATE TABLE IF NOT EXISTS users (
                 id SERIAL PRIMARY KEY,
@@ -25,9 +25,6 @@ async function initDb() {
                 password TEXT,
                 avatar_color TEXT DEFAULT '#00C2C7'
             );
-        `);
-        // Таблица сообщений
-        await pool.query(`
             CREATE TABLE IF NOT EXISTS messages (
                 id SERIAL PRIMARY KEY,
                 username TEXT,
@@ -37,7 +34,7 @@ async function initDb() {
                 timestamp TIMESTAMPTZ DEFAULT NOW()
             );
         `);
-        console.log("База данных готова");
+        console.log("БД Frutiger-DB готова");
     } catch (err) { console.error("Ошибка БД:", err); }
 }
 initDb();
@@ -45,18 +42,24 @@ initDb();
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
 
-// Регистрация
+// РЕГИСТРАЦИЯ
 app.post('/api/register', async (req, res) => {
     const { username, password } = req.body;
-    if (!username || !password) return res.status(400).json({ error: "Заполните все поля" });
-    const hashedPassword = await bcrypt.hash(password, 10);
+    if (!username || !password) return res.status(400).json({ success: false, error: "Заполните все поля" });
+
     try {
+        const hashedPassword = await bcrypt.hash(password, 10);
         await pool.query('INSERT INTO users (username, password) VALUES ($1, $2)', [username, hashedPassword]);
         res.json({ success: true });
-    } catch (err) { res.status(400).json({ error: "Никнейм занят" }); }
+    } catch (err) {
+        console.error("Ошибка регистрации:", err.code);
+        // Код ошибки 23505 — это уникальное нарушение (ник занят) в PostgreSQL
+        const msg = err.code === '23505' ? "Этот никнейм уже занят" : "Ошибка базы данных";
+        res.status(400).json({ success: false, error: msg });
+    }
 });
 
-// Логин
+// ЛОГИН
 app.post('/api/login', async (req, res) => {
     const { username, password } = req.body;
     try {
@@ -66,29 +69,20 @@ app.post('/api/login', async (req, res) => {
             const match = await bcrypt.compare(password, user.password);
             if (match) return res.json({ success: true, user: { name: user.username, color: user.avatar_color } });
         }
-        res.status(401).json({ error: "Неверный логин или пароль" });
-    } catch (err) { res.status(500).json({ error: "Ошибка сервера" }); }
+        res.status(401).json({ success: false, error: "Неверный ник или пароль" });
+    } catch (err) { res.status(500).json({ success: false, error: "Ошибка сервера" }); }
 });
 
-// История сообщений
 app.get('/api/messages/:channelKey', async (req, res) => {
-    try {
-        const result = await pool.query(
-            'SELECT username as user, avatar_color as "avatarColor", text, channel_key as "serverChannel", TO_CHAR(timestamp, \'HH24:MI\') as timestamp FROM messages WHERE channel_key = $1 ORDER BY id ASC LIMIT 50',
-            [req.params.channelKey]
-        );
-        res.json(result.rows);
-    } catch (err) { res.status(500).json({ error: "Ошибка истории" }); }
+    const result = await pool.query('SELECT username as user, avatar_color as "avatarColor", text, channel_key as "serverChannel", TO_CHAR(timestamp, \'HH24:MI\') as timestamp FROM messages WHERE channel_key = $1 ORDER BY id ASC LIMIT 50', [req.params.channelKey]);
+    res.json(result.rows);
 });
 
 io.on('connection', (socket) => {
     socket.on('chat message', async (msg) => {
-        try {
-            await pool.query('INSERT INTO messages (username, avatar_color, text, channel_key) VALUES ($1, $2, $3, $4)', 
-                [msg.user, msg.avatarColor, msg.text, msg.serverChannel]);
-            msg.timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            io.emit('chat message', msg);
-        } catch (err) { console.error(err); }
+        await pool.query('INSERT INTO messages (username, avatar_color, text, channel_key) VALUES ($1, $2, $3, $4)', [msg.user, msg.avatarColor, msg.text, msg.serverChannel]);
+        msg.timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        io.emit('chat message', msg);
     });
 });
 
