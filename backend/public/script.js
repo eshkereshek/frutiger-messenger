@@ -1,4 +1,5 @@
 const socket = io();
+
 let state = {
     currentUser: JSON.parse(localStorage.getItem('aero_user')) || null,
     theme: localStorage.getItem('aero_theme') || 'light',
@@ -26,12 +27,15 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function handleAuth(type) {
-    const username = document.getElementById('login-input').value.trim();
-    const password = document.getElementById('password-input').value.trim();
+    const userInp = document.getElementById('login-input');
+    const passInp = document.getElementById('password-input');
     const errorEl = document.getElementById('auth-error');
 
+    const username = userInp.value.trim();
+    const password = passInp.value.trim();
+
     if (!username || !password) {
-        errorEl.textContent = "Введите логин и пароль";
+        errorEl.textContent = "Заполните все поля";
         return;
     }
 
@@ -56,14 +60,13 @@ async function handleAuth(type) {
             }
         } else {
             errorEl.style.color = "#ff6b6b";
-            errorEl.textContent = data.error || "Ошибка авторизации";
+            errorEl.textContent = data.error || "Ошибка";
         }
-    } catch (e) { 
-        errorEl.textContent = "Сервер недоступен"; 
+    } catch (e) {
+        errorEl.textContent = "Нет связи с сервером";
     }
 }
 
-// Рендеринг и логика чата (из прошлых сообщений)
 async function renderApp() {
     updateUserPanel();
     renderServers();
@@ -73,9 +76,11 @@ async function renderApp() {
 
 async function loadHistory() {
     const key = `${state.activeServerId}-${state.activeChannelId}`;
-    const res = await fetch(`/api/messages/${key}`);
-    state.messages[key] = await res.json();
-    renderMessages();
+    try {
+        const res = await fetch(`/api/messages/${key}`);
+        state.messages[key] = await res.json();
+        renderMessages();
+    } catch (e) { console.error(e); }
 }
 
 function renderMessages() {
@@ -120,12 +125,17 @@ socket.on('chat message', (msg) => {
 function initEventListeners() {
     document.getElementById('login-btn').onclick = () => handleAuth('login');
     document.getElementById('show-reg-btn').onclick = () => handleAuth('register');
-    document.getElementById('message-input').onkeypress = (e) => { if (e.key === 'Enter') sendMessage(); };
+    document.getElementById('message-input').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') sendMessage();
+    });
     
-    // Настройки
-    document.querySelector('.fa-gear').onclick = () => document.getElementById('settings-modal').classList.remove('hidden');
-    document.getElementById('close-settings').onclick = () => document.getElementById('settings-modal').classList.add('hidden');
-    
+    document.querySelector('.fa-gear').onclick = () => {
+        document.getElementById('settings-modal').classList.remove('hidden');
+    };
+    document.getElementById('close-settings').onclick = () => {
+        document.getElementById('settings-modal').classList.add('hidden');
+    };
+
     document.getElementById('theme-select').onchange = (e) => {
         state.theme = e.target.value;
         localStorage.setItem('aero_theme', state.theme);

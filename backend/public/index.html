@@ -1,136 +1,119 @@
-<!DOCTYPE html>
-<html lang="ru" data-theme="light">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AeroChat Local</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="style.css">
-</head>
-<body>
+const express = require('express');
+const http = require('http');
+const { Server } = require('socket.io');
+const path = require('path');
+const { Pool } = require('pg');
+const bcrypt = require('bcryptjs');
+require('dotenv').config();
 
-    <div class="app-background"></div>
+const app = express();
+const server = http.createServer(app);
+const io = new Server(server);
 
-    <div class="app-container">
-        <nav class="servers-sidebar" id="servers-list"></nav>
+const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: { rejectUnauthorized: false }
+});
 
-        <div class="channels-sidebar">
-            <div class="sidebar-header">
-                <h3 id="server-name">Загрузка...</h3>
-            </div>
-            <div class="channels-list" id="channels-list"></div>
-            
-            <div class="user-panel">
-                <div class="user-info" id="open-settings-btn">
-                    <div class="user-avatar" id="current-user-avatar">?</div>
-                    <div class="user-details">
-                        <span class="username" id="current-username">Гость</span>
-                        <span class="user-status">#0001</span>
-                    </div>
-                </div>
-                <div class="user-controls">
-                    <i class="fa-solid fa-microphone"></i>
-                    <i class="fa-solid fa-headphones"></i>
-                    <i class="fa-solid fa-gear" title="Настройки"></i>
-                </div>
-            </div>
-        </div>
+async function initDb() {
+    try {
+        // РАЗКОММЕНТИРУЙ СЛЕДУЮЩИЕ ДВЕ СТРОКИ, ЕСЛИ ОШИБКА 42703 ПОВТОРЯЕТСЯ:
+        // await pool.query('DROP TABLE IF EXISTS messages CASCADE;');
+        // await pool.query('DROP TABLE IF EXISTS users CASCADE;');
 
-        <main class="chat-area">
-            <header class="chat-header">
-                <div class="header-left">
-                    <i class="fa-solid fa-hashtag"></i>
-                    <span id="chat-header-name">общий</span>
-                </div>
-                <div class="header-right">
-                    <i class="fa-solid fa-bell"></i>
-                    <i class="fa-solid fa-thumbtack"></i>
-                    <i class="fa-solid fa-users" id="toggle-members"></i>
-                    <div class="search-bar">
-                        <input type="text" placeholder="Поиск">
-                        <i class="fa-solid fa-magnifying-glass"></i>
-                    </div>
-                </div>
-            </header>
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS users (
+                id SERIAL PRIMARY KEY,
+                username TEXT UNIQUE NOT NULL,
+                password TEXT NOT NULL,
+                avatar_color TEXT DEFAULT '#00C2C7'
+            );
+        `);
 
-            <div class="messages-container" id="messages-container">
-                </div>
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS messages (
+                id SERIAL PRIMARY KEY,
+                username TEXT,
+                avatar_color TEXT,
+                text TEXT,
+                channel_key TEXT,
+                timestamp TIMESTAMPTZ DEFAULT NOW()
+            );
+        `);
+        console.log("--- База данных синхронизирована успешно ---");
+    } catch (err) {
+        console.error("!!! Ошибка инициализации БД:", err.code, err.message);
+    }
+}
+initDb();
 
-            <div class="input-area">
-                <div class="input-wrapper">
-                    <button class="attach-btn"><i class="fa-solid fa-plus"></i></button>
-                    <input type="text" id="message-input" placeholder="Написать сообщение..." autocomplete="off">
-                    <div class="input-icons">
-                        <i class="fa-solid fa-gift"></i>
-                        <i class="fa-solid fa-face-smile"></i>
-                    </div>
-                </div>
-            </div>
-        </main>
+app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.json());
 
-        <aside class="members-sidebar">
-            <div class="members-category">ОНЛАЙН</div>
-            <ul class="members-list" id="members-list">
-                </ul>
-        </aside>
-    </div>
+// РЕГИСТРАЦИЯ
+app.post('/api/register', async (req, res) => {
+    const { username, password } = req.body;
+    if (!username || !password) return res.status(400).json({ success: false, error: "Заполните все поля" });
 
-    <div class="modal-overlay hidden" id="login-modal">
-        <div class="modal-window glass-panel">
-            <h2>Добро пожаловать</h2>
-            <p id="auth-desc">Введите данные для входа в AeroChat</p>
-            <div style="display: flex; flex-direction: column; gap: 10px; margin: 20px 0;">
-                <input type="text" id="login-input" placeholder="Никнейм" maxlength="15">
-                <input type="password" id="password-input" placeholder="Пароль">
-            </div>
-            <div style="display: flex; gap: 10px;">
-                <button class="primary-btn" id="login-btn" style="flex: 1;">Войти</button>
-                <button class="secondary-btn" id="show-reg-btn" style="flex: 1;">Регистрация</button>
-            </div>
-            <p id="auth-error" style="color: #ff4d4d; font-size: 13px; margin-top: 10px; min-height: 1.2em;"></p>
-        </div>
-    </div>
+    try {
+        const hashedPassword = await bcrypt.hash(password, 10);
+        await pool.query('INSERT INTO users (username, password) VALUES ($1, $2)', [username, hashedPassword]);
+        res.json({ success: true });
+    } catch (err) {
+        console.error("Регистрация (ошибка):", err.code);
+        const msg = err.code === '23505' ? "Никнейм уже занят" : "Ошибка БД: " + err.code;
+        res.status(400).json({ success: false, error: msg });
+    }
+});
 
-    <div class="modal-overlay hidden" id="settings-modal">
-        <div class="modal-window glass-panel settings-window">
-            <div class="modal-header">
-                <h2>Настройки</h2>
-                <button class="close-btn" id="close-settings"><i class="fa-solid fa-xmark"></i></button>
-            </div>
-            
-            <div class="settings-content">
-                <div class="setting-group">
-                    <label>Никнейм</label>
-                    <div class="input-group">
-                        <input type="text" id="settings-username" placeholder="Новый никнейм">
-                        <button class="primary-btn small" id="save-username">Сохранить</button>
-                    </div>
-                </div>
+// ЛОГИН
+app.post('/api/login', async (req, res) => {
+    const { username, password } = req.body;
+    try {
+        const result = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
+        if (result.rows.length > 0) {
+            const user = result.rows[0];
+            const match = await bcrypt.compare(password, user.password);
+            if (match) {
+                return res.json({ 
+                    success: true, 
+                    user: { name: user.username, color: user.avatar_color } 
+                });
+            }
+        }
+        res.status(401).json({ success: false, error: "Неверный ник или пароль" });
+    } catch (err) {
+        res.status(500).json({ success: false, error: "Ошибка сервера" });
+    }
+});
 
-                <div class="setting-group">
-                    <label>Тема оформления</label>
-                    <select id="theme-select">
-                        <option value="light">Frutiger Aero Light</option>
-                        <option value="dark">Frutiger Aero Dark</option>
-                        <option value="flat">Classic Flat</option>
-                    </select>
-                </div>
+// ИСТОРИЯ
+app.get('/api/messages/:channelKey', async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT username as user, avatar_color as "avatarColor", text, 
+            channel_key as "serverChannel", TO_CHAR(timestamp, 'HH24:MI') as timestamp 
+            FROM messages WHERE channel_key = $1 ORDER BY id ASC LIMIT 60`, 
+            [req.params.channelKey]
+        );
+        res.json(result.rows);
+    } catch (err) {
+        res.status(500).json([]);
+    }
+});
 
-                <div class="setting-group">
-                    <label>Акцентный цвет</label>
-                    <div class="color-picker" id="color-picker">
-                        <div class="color-option" data-color="#00C2C7" style="background: #00C2C7;"></div>
-                        <div class="color-option" data-color="#A0D855" style="background: #A0D855;"></div>
-                        <div class="color-option" data-color="#6CB4EE" style="background: #6CB4EE;"></div>
-                        <div class="color-option" data-color="#FF6B6B" style="background: #FF6B6B;"></div>
-                        <div class="color-option" data-color="#B388FF" style="background: #B388FF;"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+io.on('connection', (socket) => {
+    socket.on('chat message', async (msg) => {
+        try {
+            await pool.query(
+                'INSERT INTO messages (username, avatar_color, text, channel_key) VALUES ($1, $2, $3, $4)', 
+                [msg.user, msg.avatarColor, msg.text, msg.serverChannel]
+            );
+            msg.timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            io.emit('chat message', msg);
+        } catch (err) { console.error("Ошибка Socket:", err.message); }
+    });
+});
 
-    <script src="/socket.io/socket.io.js"></script>
-    <script src="script.js"></script>
-</body>
-</html>
+const PORT = process.env.PORT || 10000;
+server.listen(PORT, () => console.log(`Aero Server ready on port ${PORT}`));
