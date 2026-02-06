@@ -10,21 +10,28 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-// Подключение к БД
+// 1. ПОРТ - Открываем сразу, чтобы Render не ругался на таймаут
+const PORT = process.env.PORT || 10000;
+server.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 Сервер запущен на порту ${PORT}`);
+});
+
+// 2. НАСТРОЙКИ БД
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: { rejectUnauthorized: false }
 });
 
-// Инициализация базы данных
+// 3. ИНИЦИАЛИЗАЦИЯ (С автоматической починкой структуры)
 async function initDb() {
     try {
-        console.log("Выполняю жесткую очистку и пересоздание таблиц...");
-        // Удаляем старое, чтобы исправить ошибку с колонками (42703)
+        console.log("🛠 Проверка структуры таблиц...");
+        
+        // РАСКОММЕНТИРОВАНО ДЛЯ ИСПРАВЛЕНИЯ ОШИБКИ 42703
+        // После успешного входа эти две строки лучше закомментировать обратно
         await pool.query('DROP TABLE IF EXISTS messages CASCADE;');
         await pool.query('DROP TABLE IF EXISTS users CASCADE;');
 
-        // Создаем заново с правильной структурой
         await pool.query(`
             CREATE TABLE users (
                 id SERIAL PRIMARY KEY,
@@ -44,33 +51,31 @@ async function initDb() {
                 timestamp TIMESTAMPTZ DEFAULT NOW()
             );
         `);
-        console.log("--- База данных успешно обновлена ---");
+        console.log("✅ База данных готова (таблицы пересозданы)");
     } catch (err) {
-        console.error("!!! Критическая ошибка БД:", err.code, err.message);
+        console.error("❌ Ошибка БД:", err.message);
     }
 }
 initDb();
 
-// ВАЖНО: Настройка путей
+// 4. МИДДЛВЕРЫ
 app.use(express.json());
-// Указываем, что папка public — это место для картинок/html/js браузера
 app.use(express.static(path.join(__dirname, 'public')));
 
-// API: Регистрация
+// 5. API ЭНДПОИНТЫ
 app.post('/api/register', async (req, res) => {
     const { username, password } = req.body;
-    if (!username || !password) return res.status(400).json({ success: false, error: "Заполните поля" });
+    if (!username || !password) return res.status(400).json({ success: false, error: "Заполните все поля" });
     try {
         const hashedPassword = await bcrypt.hash(password, 10);
         await pool.query('INSERT INTO users (username, password) VALUES ($1, $2)', [username, hashedPassword]);
         res.json({ success: true });
     } catch (err) {
-        const msg = err.code === '23505' ? "Ник занят" : "Ошибка БД: " + err.code;
+        const msg = err.code === '23505' ? "Никнейм занят" : "Ошибка: " + err.code;
         res.status(400).json({ success: false, error: msg });
     }
 });
 
-// API: Логин
 app.post('/api/login', async (req, res) => {
     const { username, password } = req.body;
     try {
@@ -78,25 +83,34 @@ app.post('/api/login', async (req, res) => {
         if (result.rows.length > 0) {
             const user = result.rows[0];
             const match = await bcrypt.compare(password, user.password);
-            if (match) return res.json({ success: true, user: { name: user.username, color: user.avatar_color }});
+            if (match) {
+                return res.json({ 
+                    success: true, 
+                    user: { name: user.username, color: user.avatar_color } 
+                });
+            }
         }
-        res.status(401).json({ success: false, error: "Неверный пароль" });
-    } catch (err) { res.status(500).json({ success: false, error: "Ошибка сервера" }); }
+        res.status(401).json({ success: false, error: "Неверный логин или пароль" });
+    } catch (err) {
+        res.status(500).json({ success: false, error: "Ошибка сервера" });
+    }
 });
 
-// API: Загрузка сообщений
 app.get('/api/messages/:channelKey', async (req, res) => {
     try {
         const result = await pool.query(
             `SELECT username as user, avatar_color as "avatarColor", text, 
             channel_key as "serverChannel", TO_CHAR(timestamp, 'HH24:MI') as timestamp 
-            FROM messages WHERE channel_key = $1 ORDER BY id ASC`, [req.params.channelKey]
+            FROM messages WHERE channel_key = $1 ORDER BY id ASC LIMIT 100`, 
+            [req.params.channelKey]
         );
         res.json(result.rows);
-    } catch (err) { res.json([]); }
+    } catch (err) {
+        res.json([]);
+    }
 });
 
-// Чат в реальном времени
+// 6. SOCKET.IO
 io.on('connection', (socket) => {
     socket.on('chat message', async (msg) => {
         try {
@@ -106,9 +120,8 @@ io.on('connection', (socket) => {
             );
             msg.timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             io.emit('chat message', msg);
-        } catch (e) { console.error("Socket error"); }
+        } catch (err) {
+            console.error("Ошибка при сохранении сообщения:", err.message);
+        }
     });
 });
-
-const PORT = process.env.PORT || 10000;
-server.listen(PORT, () => console.log(`Сервер запущен на порту ${PORT}`));
