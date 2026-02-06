@@ -3,113 +3,96 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Frutiger Messenger - Семейный чат</title>
+    <title>Frutiger Messenger</title>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     <link rel="stylesheet" href="css/style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 </head>
 <body data-theme="light">
-    <!-- Экран авторизации -->
-    <div id="auth-screen" class="auth-container">
-        <div class="logo">
-            <div class="logo-icon">✨</div>
-            <h1>Frutiger Messenger</h1>
-            <p class="subtitle">Семейный чат без блокировок</p>
+
+    <div class="bg-bubbles">
+        <li></li><li></li><li></li><li></li><li></li><li></li><li></li><li></li><li></li><li></li>
+    </div>
+
+    <div id="auth-screen" class="glass-panel active">
+        <div class="auth-header">
+            <div class="logo-orb"></div>
+            <h1>Frutiger ID</h1>
         </div>
+        <p class="auth-subtitle">Welcome to the future of 2008</p>
         
-        <div class="auth-form">
+        <form id="auth-form" onsubmit="event.preventDefault();">
             <div class="input-group">
-                <i class="fas fa-user"></i>
                 <input type="text" id="username-input" placeholder="Имя пользователя" required>
             </div>
-            <div class="input-group">
-                <i class="fas fa-envelope"></i>
-                <input type="email" id="email-input" placeholder="Email" required>
+            <div class="input-group" style="display:none;"> 
+                <input type="email" id="email-input" placeholder="Email (необязательно)">
             </div>
             <div class="input-group">
-                <i class="fas fa-lock"></i>
                 <input type="password" id="password-input" placeholder="Пароль" required>
             </div>
-            <button id="login-btn" class="btn glossy-btn">
-                <i class="fas fa-sign-in-alt"></i> Войти / Зарегистрироваться
-            </button>
-            <p class="info-note">При первом входе создастся аккаунт</p>
-        </div>
-        
-        <div class="theme-selector">
-            <span>Тема:</span>
-            <button id="theme-light-btn" class="theme-btn">
-                <i class="fas fa-sun"></i> Светлая
-            </button>
-            <button id="theme-dark-btn" class="theme-btn">
-                <i class="fas fa-moon"></i> Темная
-            </button>
-            <button id="theme-classic-btn" class="theme-btn">
-                <i class="fas fa-bolt"></i> Классика
-            </button>
-        </div>
+            <button id="login-btn" type="button" onclick="app.login()">Войти / Регистрация</button>
+        </form>
+        <div id="auth-error" class="error-msg"></div>
     </div>
 
-    <!-- Основной интерфейс -->
-    <div id="app-container" style="display:none;">
-        <nav class="sidebar">
-            <div class="server-list">
-                <div class="server active" title="Семейный чат">
-                    <div class="server-icon">🏠</div>
-                    <span class="server-name">Семейный</span>
-                </div>
+    <div id="app-container" style="display: none;">
+        
+        <div class="servers-sidebar glass-panel">
+            <div class="server-icon active" title="Домашний">🏠</div>
+            <div class="server-icon" title="Музыка">🎵</div>
+            <div class="server-icon" title="Игры">🎮</div>
+            <div class="server-separator"></div>
+            <div class="server-icon add-server">+</div>
+        </div>
+
+        <div class="channels-sidebar glass-panel">
+            <div class="sidebar-header">
+                <h2>🌐 Global Network</h2>
+            </div>
+            <div class="channels-list">
+                <div class="channel-item active"># general</div>
+                <div class="channel-item"># offtopic</div>
+                <div class="channel-item"># frutiger-aero</div>
+                <div class="channel-item"># music</div>
             </div>
             
-            <div class="user-profile">
-                <div class="avatar" id="user-avatar">
-                    <i class="fas fa-user" id="avatar-icon"></i>
-                </div>
+            <div class="user-profile-bar">
+                <div class="avatar-small" id="current-user-avatar">?</div>
                 <div class="user-info">
-                    <span id="current-username">Гость</span>
-                    <small id="user-status">● онлайн</small>
+                    <span id="current-username">User</span>
+                    <span class="status-text">Online</span>
                 </div>
-                <button id="logout-btn" class="logout-btn" title="Выйти">
-                    <i class="fas fa-sign-out-alt"></i>
-                </button>
+                <button id="theme-toggle-btn" onclick="app.toggleTheme()" title="Сменить тему">🎨</button>
+                <button class="logout-btn" onclick="app.logout()" title="Выход">🚪</button>
             </div>
-        </nav>
+        </div>
 
-        <main class="main-content">
-            <header class="chat-header">
-                <div class="channel-info">
-                    <span class="hashtag">#</span>
-                    <h2 id="channel-name">general</h2>
-                    <span class="member-count" id="online-count">1 онлайн</span>
-                </div>
-                <button id="theme-toggle-btn" class="theme-toggle">
-                    <i class="fas fa-palette"></i> Тема
-                </button>
-            </header>
-
-            <div class="messages-container">
-                <div id="messages-list" class="messages-list">
-                    <!-- Сообщения будут здесь -->
+        <div class="chat-area glass-panel">
+            <div class="chat-header">
+                <div class="header-left">
+                    <h3># general</h3>
+                    <span class="topic">Добро пожаловать в Frutiger Messenger</span>
                 </div>
             </div>
 
-            <div class="message-input">
-                <button class="emoji-btn" id="emoji-btn">
-                    <i class="far fa-smile"></i>
-                </button>
-                <input type="text" 
-                       id="message-input" 
-                       placeholder="Написать сообщение...">
-                <button id="send-btn" class="send-btn glossy-btn">
-                    <i class="fas fa-paper-plane"></i> Отправить
-                </button>
+            <div id="messages-list">
+                <div class="message system-message">
+                    <p>Добро пожаловать в чат! Начните общение.</p>
+                </div>
             </div>
-        </main>
-    </div>
 
-    <div class="frutiger-bg">
-        <div class="bubble b1"></div>
-        <div class="bubble b2"></div>
-        <div class="bubble b3"></div>
+            <div class="input-area">
+                <input type="text" id="message-input" placeholder="Напишите сообщение..." autocomplete="off">
+                <button id="send-btn" onclick="app.sendMessage()">Send</button>
+            </div>
+        </div>
+
+        <div class="members-sidebar glass-panel">
+            <h3>Участники — <span id="online-count">1</span></h3>
+            <div id="members-list">
+                </div>
+        </div>
     </div>
 
     <script src="js/app.js"></script>
