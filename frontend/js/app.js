@@ -3,8 +3,8 @@ const app = {
     // Конфигурация
     config: {
         // API_URL будет заменен после деплоя
-        API_URL: 'https://pagrysha-messenger.onrender.com',
-        WS_URL: 'ws://pagrysha-messenger.onrender.com',
+        API_URL: 'https://frutiger-messenger.onrender.com',
+        WS_URL: 'wss://frutiger-messenger.onrender.com',
         defaultChannelId: 1
     },
     
