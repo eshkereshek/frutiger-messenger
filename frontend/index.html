@@ -10,27 +10,27 @@
 </head>
 <body data-theme="light">
     <!-- Экран авторизации -->
-    <div id="auth-screen" class="auth-container glass-panel">
+    <div id="auth-screen" class="auth-container">
         <div class="logo">
             <div class="logo-icon">✨</div>
             <h1>Frutiger Messenger</h1>
-            <p class="subtitle">Pagrysha</p>
+            <p class="subtitle">Семейный чат без блокировок</p>
         </div>
         
         <div class="auth-form">
             <div class="input-group">
                 <i class="fas fa-user"></i>
-                <input type="text" id="username" placeholder="Имя пользователя" required>
+                <input type="text" id="username-input" placeholder="Имя пользователя" required>
             </div>
             <div class="input-group">
                 <i class="fas fa-envelope"></i>
-                <input type="email" id="email" placeholder="Email" required>
+                <input type="email" id="email-input" placeholder="Email" required>
             </div>
             <div class="input-group">
                 <i class="fas fa-lock"></i>
-                <input type="password" id="password" placeholder="Пароль" required>
+                <input type="password" id="password-input" placeholder="Пароль" required>
             </div>
-            <button onclick="app.login()" class="btn glossy-btn">
+            <button id="login-btn" class="btn glossy-btn">
                 <i class="fas fa-sign-in-alt"></i> Войти / Зарегистрироваться
             </button>
             <p class="info-note">При первом входе создастся аккаунт</p>
@@ -38,13 +38,13 @@
         
         <div class="theme-selector">
             <span>Тема:</span>
-            <button onclick="app.setTheme('light')" class="theme-btn">
+            <button id="theme-light-btn" class="theme-btn">
                 <i class="fas fa-sun"></i> Светлая
             </button>
-            <button onclick="app.setTheme('dark')" class="theme-btn">
+            <button id="theme-dark-btn" class="theme-btn">
                 <i class="fas fa-moon"></i> Темная
             </button>
-            <button onclick="app.setTheme('classic')" class="theme-btn">
+            <button id="theme-classic-btn" class="theme-btn">
                 <i class="fas fa-bolt"></i> Классика
             </button>
         </div>
@@ -52,7 +52,7 @@
 
     <!-- Основной интерфейс -->
     <div id="app-container" style="display:none;">
-        <nav class="sidebar glass-panel">
+        <nav class="sidebar">
             <div class="server-list">
                 <div class="server active" title="Семейный чат">
                     <div class="server-icon">🏠</div>
@@ -68,39 +68,38 @@
                     <span id="current-username">Гость</span>
                     <small id="user-status">● онлайн</small>
                 </div>
-                <button onclick="app.logout()" class="logout-btn" title="Выйти">
+                <button id="logout-btn" class="logout-btn" title="Выйти">
                     <i class="fas fa-sign-out-alt"></i>
                 </button>
             </div>
         </nav>
 
         <main class="main-content">
-            <header class="chat-header glass-panel">
+            <header class="chat-header">
                 <div class="channel-info">
                     <span class="hashtag">#</span>
                     <h2 id="channel-name">general</h2>
                     <span class="member-count" id="online-count">1 онлайн</span>
                 </div>
-                <button onclick="app.toggleTheme()" class="theme-toggle">
+                <button id="theme-toggle-btn" class="theme-toggle">
                     <i class="fas fa-palette"></i> Тема
                 </button>
             </header>
 
-            <div class="messages-container" id="messages-container">
+            <div class="messages-container">
                 <div id="messages-list" class="messages-list">
                     <!-- Сообщения будут здесь -->
                 </div>
             </div>
 
-            <div class="message-input glass-panel">
-                <button class="emoji-btn" onclick="app.toggleEmoji()">
+            <div class="message-input">
+                <button class="emoji-btn" id="emoji-btn">
                     <i class="far fa-smile"></i>
                 </button>
                 <input type="text" 
                        id="message-input" 
-                       placeholder="Написать сообщение..." 
-                       onkeypress="if(event.key === 'Enter') app.sendMessage()">
-                <button onclick="app.sendMessage()" class="send-btn glossy-btn">
+                       placeholder="Написать сообщение...">
+                <button id="send-btn" class="send-btn glossy-btn">
                     <i class="fas fa-paper-plane"></i> Отправить
                 </button>
             </div>
