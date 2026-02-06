@@ -2,66 +2,60 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
-const cors = require('cors');
-const jwt = require('jsonwebtoken');
+const { Pool } = require('pg');
+require('dotenv').config();
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, {
-    cors: { origin: "*" }
+const io = new Server(server);
+
+// Подключение к PostgreSQL (frutiger-db)
+const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: { rejectUnauthorized: false }
+});
+
+// Создание таблицы, если её нет
+async function initDb() {
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS messages (
+            id SERIAL PRIMARY KEY,
+            username TEXT,
+            avatar_color TEXT,
+            text TEXT,
+            channel_key TEXT,
+            timestamp TIMESTAMPTZ DEFAULT NOW()
+        );
+    `);
+}
+initDb();
+
+app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.json());
+
+// Получение истории сообщений
+app.get('/api/messages/:channelKey', async (req, res) => {
+    try {
+        const result = await pool.query(
+            'SELECT username as user, avatar_color as "avatarColor", text, channel_key as "serverChannel", TO_CHAR(timestamp, \'HH24:MI\') as timestamp FROM messages WHERE channel_key = $1 ORDER BY id ASC LIMIT 50',
+            [req.params.channelKey]
+        );
+        res.json(result.rows);
+    } catch (err) { res.status(500).send(err.message); }
+});
+
+io.on('connection', (socket) => {
+    socket.on('chat message', async (msg) => {
+        try {
+            await pool.query(
+                'INSERT INTO messages (username, avatar_color, text, channel_key) VALUES ($1, $2, $3, $4)',
+                [msg.user, msg.avatarColor, msg.text, msg.serverChannel]
+            );
+            msg.timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            io.emit('chat message', msg);
+        } catch (err) { console.error(err); }
+    });
 });
 
 const PORT = process.env.PORT || 10000;
-const JWT_SECRET = process.env.JWT_SECRET || 'frutiger_secret_99';
-
-// Middleware
-app.use(cors());
-app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
-
-// --- API Эндпоинты ---
-
-app.get('/api/health', (req, res) => {
-    res.json({ status: 'ok', time: new Date() });
-});
-
-app.post('/api/register', async (req, res) => {
-    // В реальности здесь будет запрос к database.js
-    const { username } = req.body;
-    const token = jwt.sign({ username }, JWT_SECRET);
-    res.json({ success: true, token, username });
-});
-
-app.post('/api/login', (req, res) => {
-    const { username } = req.body;
-    const token = jwt.sign({ username }, JWT_SECRET);
-    res.json({ success: true, token, username });
-});
-
-// --- WebSocket Логика ---
-
-io.on('connection', (socket) => {
-    console.log('User connected:', socket.id);
-
-    socket.on('message', (data) => {
-        // Рассылаем всем сообщение
-        io.emit('message', {
-            text: data.text,
-            user: data.user,
-            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        });
-    });
-
-    socket.on('disconnect', () => {
-        console.log('User disconnected');
-    });
-});
-
-// SPA Routing: Все запросы, которые не API, отдают index.html
-app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
-
-server.listen(PORT, () => {
-    console.log(`Frutiger Server running on port ${PORT}`);
-});
+server.listen(PORT, () => console.log(`Aero Chat Server on ${PORT}`));

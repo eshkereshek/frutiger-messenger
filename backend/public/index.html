@@ -1,43 +1,131 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="ru" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Frutiger Messenger</title>
-    <link rel="stylesheet" href="css/style.css">
-    <script src="/socket.io/socket.io.js"></script>
+    <title>AeroChat Local</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
 </head>
-<body data-theme="light">
-    <div class="bubbles-bg"></div>
-    
-    <div id="auth-screen" class="glass-panel">
-        <div class="logo-orb"></div>
-        <h1>Aero Chat</h1>
-        <input type="text" id="username-input" placeholder="Ваше имя...">
-        <button id="login-btn" class="glow-btn">Войти</button>
-    </div>
+<body>
 
-    <div id="app-container" class="hidden">
-        <aside class="sidebar glass">
-            <div class="server-list">
-                <div class="server-icon active">A</div>
+    <div class="app-background"></div>
+
+    <div class="app-container">
+        <nav class="servers-sidebar" id="servers-list">
+            </nav>
+
+        <div class="channels-sidebar">
+            <div class="sidebar-header">
+                <h3 id="server-name">Загрузка...</h3>
             </div>
-            <button id="theme-toggle-btn" class="icon-btn">🎨</button>
-        </aside>
+            <div class="channels-list" id="channels-list">
+                </div>
+            
+            <div class="user-panel">
+                <div class="user-info" id="open-settings-btn">
+                    <div class="user-avatar" id="current-user-avatar">?</div>
+                    <div class="user-details">
+                        <span class="username" id="current-username">Гость</span>
+                        <span class="user-status">#0001</span>
+                    </div>
+                </div>
+                <div class="user-controls">
+                    <i class="fa-solid fa-microphone"></i>
+                    <i class="fa-solid fa-headphones"></i>
+                    <i class="fa-solid fa-gear" title="Настройки"></i>
+                </div>
+            </div>
+        </div>
 
-        <main class="chat-window glass">
+        <main class="chat-area">
             <header class="chat-header">
-                <h2># general</h2>
-                <span id="user-badge"></span>
+                <div class="header-left">
+                    <i class="fa-solid fa-hashtag"></i>
+                    <span id="chat-header-name">общий</span>
+                </div>
+                <div class="header-right">
+                    <i class="fa-solid fa-bell"></i>
+                    <i class="fa-solid fa-thumbtack"></i>
+                    <i class="fa-solid fa-users" id="toggle-members"></i>
+                    <div class="search-bar">
+                        <input type="text" placeholder="Поиск">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                    </div>
+                </div>
             </header>
-            <div id="messages-list"></div>
+
+            <div class="messages-container" id="messages-container">
+                </div>
+
             <div class="input-area">
-                <input type="text" id="message-input" placeholder="Написать в #general...">
-                <button id="send-btn">➤</button>
+                <div class="input-wrapper">
+                    <button class="attach-btn"><i class="fa-solid fa-plus"></i></button>
+                    <input type="text" id="message-input" placeholder="Написать сообщение..." autocomplete="off">
+                    <div class="input-icons">
+                        <i class="fa-solid fa-gift"></i>
+                        <i class="fa-solid fa-face-smile"></i>
+                    </div>
+                </div>
             </div>
         </main>
+
+        <aside class="members-sidebar">
+            <div class="members-category">ОНЛАЙН — 3</div>
+            <ul class="members-list" id="members-list">
+                </ul>
+        </aside>
     </div>
 
-    <script src="js/app.js"></script>
+    <div class="modal-overlay" id="login-modal">
+        <div class="modal-window glass-panel">
+            <h2>Добро пожаловать в AeroChat</h2>
+            <p>Введите ваш никнейм, чтобы начать:</p>
+            <input type="text" id="login-input" placeholder="Ваш никнейм" maxlength="15">
+            <button class="primary-btn" id="login-btn">Войти</button>
+        </div>
+    </div>
+
+    <div class="modal-overlay hidden" id="settings-modal">
+        <div class="modal-window glass-panel settings-window">
+            <div class="modal-header">
+                <h2>Настройки</h2>
+                <button class="close-btn" id="close-settings"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            
+            <div class="settings-content">
+                <div class="setting-group">
+                    <label>Никнейм</label>
+                    <div class="input-group">
+                        <input type="text" id="settings-username" placeholder="Новый никнейм">
+                        <button class="primary-btn small" id="save-username">Сохранить</button>
+                    </div>
+                </div>
+
+                <div class="setting-group">
+                    <label>Тема оформления</label>
+                    <select id="theme-select">
+                        <option value="light">Frutiger Aero Light</option>
+                        <option value="dark">Frutiger Aero Dark</option>
+                        <option value="flat">Classic Flat</option>
+                    </select>
+                </div>
+
+                <div class="setting-group">
+                    <label>Акцентный цвет</label>
+                    <div class="color-picker" id="color-picker">
+                        <div class="color-option" data-color="#00C2C7" style="background: #00C2C7;"></div>
+                        <div class="color-option" data-color="#A0D855" style="background: #A0D855;"></div>
+                        <div class="color-option" data-color="#6CB4EE" style="background: #6CB4EE;"></div>
+                        <div class="color-option" data-color="#FF6B6B" style="background: #FF6B6B;"></div>
+                        <div class="color-option" data-color="#B388FF" style="background: #B388FF;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="script.js"></script>
 </body>
 </html>
