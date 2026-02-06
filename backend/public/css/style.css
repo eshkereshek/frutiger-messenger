@@ -1,0 +1,82 @@
+:root[data-theme="light"] {
+    --bg: #e6f7ff;
+    --glass: rgba(255, 255, 255, 0.5);
+    --accent: #00c2c7;
+    --text: #1a3a5f;
+    --grad: linear-gradient(135deg, #00c2c7, #a0d855);
+}
+
+:root[data-theme="dark"] {
+    --bg: #0a1a2a;
+    --glass: rgba(10, 26, 42, 0.7);
+    --accent: #00ffcc;
+    --text: #e0f0ff;
+    --grad: linear-gradient(135deg, #004e92, #000428);
+}
+
+:root[data-theme="classic"] {
+    --bg: #8ed6ff;
+    --glass: rgba(255, 255, 255, 0.8);
+    --accent: #ff6b9d;
+    --text: #000;
+    --grad: linear-gradient(180deg, #a0d855 0%, #00c2c7 100%);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+
+body { 
+    background-color: var(--bg); 
+    color: var(--text); 
+    height: 100vh; 
+    overflow: hidden; 
+    transition: 0.5s;
+}
+
+.bubbles-bg {
+    position: fixed; width: 100%; height: 100%;
+    background: radial-gradient(circle at 10% 20%, rgba(160, 216, 85, 0.1) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(0, 194, 199, 0.1) 0%, transparent 40%);
+    z-index: -1;
+}
+
+.glass-panel {
+    background: var(--glass);
+    backdrop-filter: blur(15px);
+    border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 25px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+}
+
+#auth-screen {
+    width: 320px; padding: 40px;
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+}
+
+.logo-orb {
+    width: 70px; height: 70px; background: var(--grad);
+    border-radius: 50%; margin: 0 auto 20px;
+    box-shadow: inset -5px -5px 15px rgba(0,0,0,0.2), 0 0 20px var(--accent);
+}
+
+#app-container { display: flex; height: 100vh; padding: 10px; gap: 10px; }
+
+.sidebar { width: 70px; display: flex; flex-direction: column; align-items: center; padding: 15px 0; border-radius: 20px; }
+
+.chat-window { flex: 1; display: flex; flex-direction: column; border-radius: 20px; overflow: hidden; }
+
+.chat-header { padding: 15px 20px; border-bottom: 1px solid rgba(255,255,255,0.2); display: flex; justify-content: space-between; }
+
+#messages-list { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+
+.message { background: var(--glass); padding: 10px 15px; border-radius: 15px; max-width: 80%; animation: pop 0.3s ease; }
+
+.input-area { padding: 20px; display: flex; gap: 10px; }
+
+input { padding: 12px; border-radius: 15px; border: 1px solid rgba(255,255,255,0.3); background: var(--glass); color: var(--text); flex: 1; outline: none; }
+
+.glow-btn, #send-btn { background: var(--grad); border: none; color: white; border-radius: 15px; cursor: pointer; transition: 0.3s; }
+
+.hidden { display: none !important; }
+@keyframes pop { from { opacity: 0; transform: scale(0.9); } }
