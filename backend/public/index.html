@@ -12,15 +12,13 @@
     <div class="app-background"></div>
 
     <div class="app-container">
-        <nav class="servers-sidebar" id="servers-list">
-            </nav>
+        <nav class="servers-sidebar" id="servers-list"></nav>
 
         <div class="channels-sidebar">
             <div class="sidebar-header">
                 <h3 id="server-name">Загрузка...</h3>
             </div>
-            <div class="channels-list" id="channels-list">
-                </div>
+            <div class="channels-list" id="channels-list"></div>
             
             <div class="user-panel">
                 <div class="user-info" id="open-settings-btn">
@@ -71,18 +69,25 @@
         </main>
 
         <aside class="members-sidebar">
-            <div class="members-category">ОНЛАЙН — 3</div>
+            <div class="members-category">ОНЛАЙН</div>
             <ul class="members-list" id="members-list">
                 </ul>
         </aside>
     </div>
 
-    <div class="modal-overlay" id="login-modal">
+    <div class="modal-overlay hidden" id="login-modal">
         <div class="modal-window glass-panel">
-            <h2>Добро пожаловать в AeroChat</h2>
-            <p>Введите ваш никнейм, чтобы начать:</p>
-            <input type="text" id="login-input" placeholder="Ваш никнейм" maxlength="15">
-            <button class="primary-btn" id="login-btn">Войти</button>
+            <h2>Добро пожаловать</h2>
+            <p id="auth-desc">Введите данные для входа в AeroChat</p>
+            <div style="display: flex; flex-direction: column; gap: 10px; margin: 20px 0;">
+                <input type="text" id="login-input" placeholder="Никнейм" maxlength="15">
+                <input type="password" id="password-input" placeholder="Пароль">
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button class="primary-btn" id="login-btn" style="flex: 1;">Войти</button>
+                <button class="secondary-btn" id="show-reg-btn" style="flex: 1;">Регистрация</button>
+            </div>
+            <p id="auth-error" style="color: #ff4d4d; font-size: 13px; margin-top: 10px; min-height: 1.2em;"></p>
         </div>
     </div>
 
